@@ -33,14 +33,34 @@ jobs:
           tags: ghcr.io/${{ secrets.DOCKER_USERNAME }}/greenhouse-backend:latest
 
       # Étape 4: Se déploie sur le serveur via SSH
-      - name: 4. Deploy to Server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
-          script: |
+      - name: 4. Deploy to Server via Cloudflare Tunnel
+        run: |
+          # Installe cloudflared sur la machine virtuelle de GitHub
+          echo "--- Installing cloudflared ---"
+          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared-linux-amd64.deb
+
+          # Prépare l'environnement SSH de manière sécurisée
+          echo "--- Setting up SSH ---"
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SERVER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # Configure le client SSH pour utiliser le tunnel (méthode plus robuste)
+          cat <<EOT >> ~/.ssh/config
+          Host ${{ secrets.SERVER_HOST }}
+            User ${{ secrets.SERVER_USER }}
+            ProxyCommand /usr/local/bin/cloudflared access ssh --hostname %h
+            IdentityFile ~/.ssh/deploy_key
+          EOT
+
+          # Lance le script de déploiement via SSH à travers le tunnel
+          echo "--- Deploying to server ---"
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_HOST }} << 'EOF'
+            echo "✅ Connexion au serveur réussie, début du déploiement..."
             cd ~/greenhouse-backend
             docker login ghcr.io -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PAT }}
             docker compose pull backend
             docker compose up -d --force-recreate backend
+            echo "🚀 Déploiement terminé avec succès !"
+          EOF
