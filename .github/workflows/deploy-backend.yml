@@ -1,0 +1,46 @@
+name: Deploy Backend to Server
+
+# Déclencheur : se lance à chaque push sur la branche "main"
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    # Le robot utilisera une machine virtuelle Ubuntu
+    runs-on: ubuntu-latest
+
+    steps:
+      # Étape 1: Récupère le code du dépôt
+      - name: 1. Checkout Repository
+        uses: actions/checkout@v4
+
+      # Étape 2: Se connecte au registre de conteneurs de GitHub
+      - name: 2. Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PAT }}
+
+      # Étape 3: Construit et pousse l'image Docker
+      - name: 3. Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ secrets.DOCKER_USERNAME }}/greenhouse-backend:latest
+
+      # Étape 4: Se déploie sur le serveur via SSH
+      - name: 4. Deploy to Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/greenhouse-backend
+            docker login ghcr.io -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PAT }}
+            docker compose pull backend
+            docker compose up -d --force-recreate backend

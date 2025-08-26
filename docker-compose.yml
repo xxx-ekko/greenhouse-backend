@@ -1,0 +1,48 @@
+# Définition de nos services
+services:
+  # Notre service backend
+  backend:
+    image: ghcr.io/xxx-ekko/greenhouse-backend:latest
+    container_name: greenhouse_backend_app
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  # Notre service de base de données
+  db:
+    image: postgres:16-alpine
+    container_name: greenhouse_postgres_db
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # ========================================
+  # == NOTRE NOUVEAU SERVICE FRONTEND ==
+  # ========================================
+  frontend:
+    image: greenhouse-frontend
+    container_name: greenhouse_frontend_app
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  # ==================================
+  # == NOTRE NOUVEAU SIMULATEUR ==
+  # ==================================
+  simulator:
+    build:
+      context: ../greenhouse-simulator # Chemin vers le dossier du simulateur
+    container_name: greenhouse_simulator
+    restart: "no" # Important: ne redémarre pas tout seul
+    depends_on:
+      - backend # Démarre seulement si le backend est prêt
+
+# Définition des volumes persistants
+volumes:
+  postgres_data:
