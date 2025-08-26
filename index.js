@@ -1,3 +1,4 @@
+//backend/index.js
 require('dotenv').config();
 
 const apiKeyAuth = require('./middleware/apiKeyAuth');
