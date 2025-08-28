@@ -10,6 +10,7 @@ services:
       - .env
     depends_on:
       - db
+    restart: unless-stopped
 
   # Notre service de base de données
   db:
@@ -21,12 +22,13 @@ services:
       POSTGRES_DB: ${DB_DATABASE}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
 
   # ========================================
   # == NOTRE NOUVEAU SERVICE FRONTEND ==
   # ========================================
   frontend:
-    image: greenhouse-frontend
+    image: ghcr.io/xxx-ekko/greenhouse-frontend:latest
     container_name: greenhouse_frontend_app
     ports:
       - "8080:80"
