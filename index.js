@@ -175,25 +175,27 @@ app.get('/api/sensors', auth, async (req, res) => {
 // --- MEASUREMENTS ROUTES ---
 
 // @route   POST /api/measurements
-// @desc    Receive a new measurement from an authenticated sensor
+// @desc    Receive a new measurement from ANY authenticated sensor
 // @access  Private (requires API Key)
 app.post('/api/measurements', apiKeyAuth, async (req, res) => {
   // The sensor ID now comes securely from the middleware after it validates the API key.
   const sensor_id = req.sensor.id;
-  const { temperature, humidity } = req.body;
+  // We take the entire body of the JSON request.
+  const data = req.body;
 
-  // Basic validation for the incoming data
-  if (temperature === undefined || humidity === undefined) {
-    return res.status(400).json({ message: 'Temperature and humidity are required.' });
+  // Minimal validation: we make sure we have a non-empty JSON object.
+  if (typeof data !== 'object' || data === null || Object.keys(data).length === 0) {
+    return res.status(400).json({ message: 'A valid JSON body is required.' });
   }
 
   try {
     const queryText = `
-      INSERT INTO measurements (sensor_id, temperature, humidity)
-      VALUES ($1, $2, $3)
+      INSERT INTO measurements (sensor_id, data)
+      VALUES ($1, $2)
       RETURNING *;
     `;
-    const values = [sensor_id, temperature, humidity];
+    
+    const values = [sensor_id, data];
     const { rows } = await db.query(queryText, values);
 
     res.status(201).json(rows[0]);
