@@ -1,5 +1,6 @@
 // backend/middleware/apiKeyAuth.js
-const db = require('../database');
+const { Sensor } = require('../models');
+//const db = require('../database');
 
 const apiKeyAuth = async (req, res, next) => {
   // Get the API key from a custom header
@@ -10,15 +11,15 @@ const apiKeyAuth = async (req, res, next) => {
   }
 
   try {
-    const queryText = 'SELECT * FROM sensors WHERE api_key = $1';
-    const { rows } = await db.query(queryText, [apiKey]);
+    // On utilise Sequelize pour trouver UN capteur qui a cette clé d'API
+    const sensor = await Sensor.findOne({ where: { api_key: apiKey } });
 
-    if (rows.length === 0) {
+    if (!sensor) {
       return res.status(401).json({ message: 'Invalid API Key.' });
     }
 
     // Attach the sensor object to the request for later use
-    req.sensor = rows[0];
+    req.sensor = sensor;
     next();
   } catch (err) {
     console.error(err.message);
